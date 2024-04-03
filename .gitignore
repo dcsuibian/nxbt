@@ -145,3 +145,5 @@ Vagrantfile
 .vagrant
 cert.pem
 key.pem
+
+.idea
