@@ -1,26 +1,27 @@
-import socket
-import fcntl
-import os
-import time
-import queue
-import logging
-import traceback
 import atexit
-from threading import Thread
+import fcntl
+import logging
+import os
+import queue
+import socket
 import statistics as stat
+import time
+import traceback
+from multiprocessing import Lock
+from threading import Thread
 
 from .controller import Controller, ControllerTypes
-from ..bluez import BlueZ, find_devices_by_alias
-from .protocol import ControllerProtocol
 from .input import InputParser
+from .protocol import ControllerProtocol
 from .utils import format_msg_controller, format_msg_switch
+from ..bluez import BlueZ
 
 
-class ControllerServer():
+class ControllerServer:
 
     def __init__(self, controller_type, adapter_path="/org/bluez/hci0",
                  state=None, task_queue=None, lock=None, colour_body=None,
-                 colour_buttons=None):
+                 colour_buttons=None, reconnect_address=None):
 
         self.logger = logging.getLogger('nxbt')
         # Cache logging level to increase performance on checks
@@ -46,6 +47,8 @@ class ControllerServer():
 
         if lock:
             self.lock = lock
+        else:
+            self.lock = Lock()
 
         self.reconnect_counter = 0
 
@@ -67,6 +70,7 @@ class ControllerServer():
         # Initial reconnection overload protection
         self.tick = 1
         self.cached_msg = ''
+        self.reconnect_address = reconnect_address
 
     def run(self, reconnect_address=None):
         """Runs the mainloop of the controller server.
@@ -75,6 +79,9 @@ class ControllerServer():
         previously connected to Nintendo Switch, defaults to None
         :type reconnect_address: string or list, optional
         """
+
+        if self.reconnect_address:
+            reconnect_address = self.reconnect_address
 
         self.state["state"] = "initializing"
 
@@ -184,7 +191,7 @@ class ControllerServer():
             duration_elapsed = duration_end - duration_start
             duration_start = duration_end
 
-            sleep_time = 1 / 132 - duration_elapsed
+            sleep_time = 1 / 1000
             if sleep_time >= 0:
                 time.sleep(sleep_time)
             self.tick += 1
@@ -510,4 +517,5 @@ class ControllerServer():
         return itr, ctrl
 
     def _on_exit(self):
-        self.bt.reset_address()
+        # self.bt.reset_address()
+        pass
